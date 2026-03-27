@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+Resources:
+  # -----------------------
+  #     IAM ROLE
+  # -----------------------
+  IAMRole:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: !Sub "endy-lab-payments-lambda-role-${Env}"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: !Sub "endy-lab-dynamodb-access-${Env}"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:GetItem
+                  - dynamodb:Query
+                Resource: 
+                  Fn::ImportValue: !Sub "endy-lab-payments-table-arn-${Env}"
+  # -----------------------
+  #     Lambda Function
+  # -----------------------
+  CreatePaymentFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "endy-lab-create-payment-${Env}"
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt IAMRole.Arn
+      Code:
+        ZipFile: |
+          import json
+          import os
+          
+          def handler(event, context):
+            table_name = os.environ["TABLE_NAME"]
+            print(f"Event: {json.dumps(event)}")
+            print(f"Table: {table_name}")
+            return {
+              "statusCode": 200,
+              "body": json.dumps({"message": "Payment received!"})
+            }
+      Environment:
+        Variables:
+          TABLE_NAME:
+            Fn::ImportValue: !Sub "endy-lab-payments-table-name-${Env}"
+      Tags:
+        - Key: Owner
+          Value: Endy
+        - Key: Project
+          Value: Serverless-Workshop
+Outputs:
+  LambdaArn:
+    Value: !GetAtt CreatePaymentFunction.Arn
+    Export:
+      Name: !Sub "endy-lab-create-payment-arn-${Env}"
+  RoleArn:
+    Value: !GetAtt IAMRole.Arn
+    Export:
+      Name: !Sub "endy-lab-payments-lambda-role-arn-${Env}"
