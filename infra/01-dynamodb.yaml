@@ -1,0 +1,54 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Parameters:
+  Env:
+    Type: String
+    Default: dev
+Resources:
+  # -----------------------
+  #     DynamoDB
+  # -----------------------
+  PaymentsTable:
+    Type: "AWS::DynamoDB::Table"
+    Properties:
+      TableName: !Sub "endy-lab-payments-${Env}"
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+        - AttributeName: GSI1PK
+          AttributeType: S
+        - AttributeName: GSI1SK
+          AttributeType: S
+      KeySchema: 
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: GSI1
+          KeySchema:
+            - AttributeName: GSI1PK
+              KeyType: HASH
+            - AttributeName: GSI1SK
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      Tags:
+        - Key: Owner
+          Value: Endy
+        - Key: Project
+          Value: Serverless-Workshop
+        - Key: Environment
+          Value: Dev
+Outputs:
+  TableName:
+    Value: !Ref PaymentsTable
+    Export:
+      Name: !Sub "endy-lab-payments-table-name-${Env}"
+  TableArn:
+    Value: !GetAtt PaymentsTable.Arn
+    Export:
+      Name: !Sub "endy-lab-payments-table-arn-${Env}"
