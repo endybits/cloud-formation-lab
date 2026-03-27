@@ -34,7 +34,7 @@ Desplegar una app que simule pagos por **Datafono / Link / Botón Web / QR** imp
 | # | Ejercicio | Conceptos CF | Estado |
 |---|---|---|---|
 | 1 | [DynamoDB Table](#ejercicio-1--dynamodb-table) | `AWS::DynamoDB::Table`, Parameters, Outputs, Export | ✅ |
-| 2 | [Lambda + IAM Role](#ejercicio-2--lambda--iam-role) | `AWS::Lambda::Function`, `AWS::IAM::Role`, `!ImportValue`, `!GetAtt` | ⬜ |
+| 2 | [Lambda + IAM Role](#ejercicio-2--lambda--iam-role) | `AWS::Lambda::Function`, `AWS::IAM::Role`, `!ImportValue`, `!GetAtt` | ✅ |
 | 3 | [API Gateway HTTP API](#ejercicio-3--api-gateway-http-api) | `AWS::ApiGatewayV2::Api`, `!Sub`, Lambda Permission | ⬜ |
 | 4 | [S3 + Empaquetado real](#ejercicio-4--s3--empaquetado-real) | `cloudformation package`, S3 artifacts, DeletionPolicy | ⬜ |
 | 5 | [SQS + Dead Letter Queue](#ejercicio-5--sqs--dead-letter-queue) | `AWS::SQS::Queue`, RedrivePolicy, EventSourceMapping | ⬜ |
@@ -110,7 +110,37 @@ aws cloudformation describe-stacks --stack-name endy-lab-dynamodb-dev
 
 ## Ejercicio 2 — Lambda + IAM Role
 
-*En progreso...*
+**Objetivo:** Crear una Lambda con su IAM Role y conectarla a DynamoDB vía cross-stack reference.
+
+**Conceptos aprendidos:**
+- Un IAM Role tiene 3 partes: Trust Policy (quién lo usa), Managed Policies (permisos precocinados), Inline Policies (permisos custom)
+- `AssumeRolePolicyDocument` define quién puede asumir el role (`lambda.amazonaws.com`)
+- `!ImportValue` trae exports de otros stacks — el nombre debe coincidir **exactamente**
+- Para anidar funciones intrínsecas: una en forma corta (`!Sub`) y otra en forma larga (`Fn::ImportValue`)
+- `--capabilities CAPABILITY_NAMED_IAM` es obligatorio cuando el template crea IAM Roles
+- `!GetAtt Recurso.Arn` obtiene el ARN de un recurso del mismo template
+- Lambda necesita `Environment.Variables` para recibir configuración (como TABLE_NAME)
+- En macOS, usar `fileb://` para payloads de Lambda evita problemas con encoding
+
+**Desplegar:**
+```bash
+aws cloudformation validate-template --template-body file://compute/02-lambda-role.yaml
+
+aws cloudformation deploy \
+  --template-file compute/02-lambda-role.yaml \
+  --stack-name endy-lab-lambda-dev \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides Env=dev
+```
+
+**Verificar:**
+```bash
+printf '{"test": true}' > payload.json
+aws lambda invoke \
+  --function-name endy-lab-create-payment-dev \
+  --payload fileb://payload.json \
+  output.json && cat output.json
+```
 
 ## Ejercicio 3 — API Gateway HTTP API
 
